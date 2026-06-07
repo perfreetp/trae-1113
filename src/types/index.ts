@@ -69,6 +69,13 @@ export interface PersonRecord {
   checkOutTime?: string;
 }
 
+export interface CheckedOutPerson {
+  id: string;
+  name: string;
+  checkInTime: string;
+  checkOutTime: string;
+}
+
 export interface DispatchOrder {
   id: string;
   placeId: string;
@@ -79,6 +86,7 @@ export interface DispatchOrder {
   endTime?: string;
   operator: string;
   status: DispatchStatus;
+  checkedOutPersons?: CheckedOutPerson[];
 }
 
 export interface Feedback {

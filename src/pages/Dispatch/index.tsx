@@ -50,6 +50,8 @@ export default function Dispatch() {
 
   const [registerName, setRegisterName] = useState('');
   const [registerIdCard, setRegisterIdCard] = useState('');
+  const [showCheckedOutPersonsModal, setShowCheckedOutPersonsModal] = useState(false);
+  const [viewingOrder, setViewingOrder] = useState<typeof dispatchOrders[0] | null>(null);
 
   const openPlaces = places.filter(p => p.status === 'open');
   const placePersonRecords = selectedPlace 
@@ -86,15 +88,29 @@ export default function Dispatch() {
   };
 
   const executePublishOrder = (placeId: string, type: 'open' | 'close', reason: string) => {
+    const now = new Date().toISOString();
+    let checkedOutPersons = undefined;
+
+    if (type === 'close') {
+      const pendingRecords = getPendingCheckOutRecords(placeId);
+      checkedOutPersons = pendingRecords.map(r => ({
+        id: r.id,
+        name: r.name,
+        checkInTime: r.checkInTime,
+        checkOutTime: now
+      }));
+    }
+
     const newOrder: DispatchOrder = {
       id: generateId(),
       placeId: placeId,
       type: type,
       reason: reason,
-      createTime: new Date().toISOString(),
-      executeTime: new Date().toISOString(),
+      createTime: now,
+      executeTime: now,
       operator: '系统管理员',
-      status: 'active'
+      status: 'active',
+      checkedOutPersons
     };
 
     addDispatchOrder(newOrder);
@@ -496,6 +512,18 @@ export default function Dispatch() {
                             操作人：{order.operator}
                           </span>
                         </div>
+                        {order.checkedOutPersons && order.checkedOutPersons.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setViewingOrder(order);
+                              setShowCheckedOutPersonsModal(true);
+                            }}
+                            className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            查看签出人员 ({order.checkedOutPersons.length} 人)
+                          </button>
+                        )}
                       </div>
                     </div>
                     {order.status === 'active' && (
@@ -727,6 +755,71 @@ export default function Dispatch() {
                 className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 确认登记
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCheckedOutPersonsModal && viewingOrder && viewingOrder.checkedOutPersons && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">签出人员明细</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {places.find(p => p.id === viewingOrder.placeId)?.name || '未知场所'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCheckedOutPersonsModal(false);
+                  setViewingOrder(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-orange-800">
+                    本次关闭场所共签出 <span className="font-bold">{viewingOrder.checkedOutPersons.length}</span> 人
+                  </p>
+                  <p className="text-xs text-orange-600 mt-1">
+                    签出时间：{formatDateTime(viewingOrder.executeTime || viewingOrder.createTime)}
+                  </p>
+                </div>
+                <table className="w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">姓名</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">登记时间</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">签出时间</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {viewingOrder.checkedOutPersons.map((person) => (
+                      <tr key={person.id} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 font-medium text-gray-900">{person.name}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">{formatDateTime(person.checkInTime)}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">{formatDateTime(person.checkOutTime)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowCheckedOutPersonsModal(false);
+                  setViewingOrder(null);
+                }}
+                className="w-full px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                关闭
               </button>
             </div>
           </div>

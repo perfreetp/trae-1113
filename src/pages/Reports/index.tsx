@@ -98,12 +98,13 @@ export default function Reports() {
 
   const filteredPlaces = useMemo(() => {
     return places.filter((place) => {
+      const matchDate = !place.updatedAt || isInDateRange(place.updatedAt, dateRange);
       const matchDistrict = !districtFilter || place.district === districtFilter;
       const matchStatus = !placeStatusFilter || place.status === placeStatusFilter;
       const matchType = !placeTypeFilter || place.type === placeTypeFilter;
-      return matchDistrict && matchStatus && matchType;
+      return matchDate && matchDistrict && matchStatus && matchType;
     });
-  }, [places, districtFilter, placeStatusFilter, placeTypeFilter]);
+  }, [places, dateRange, districtFilter, placeStatusFilter, placeTypeFilter, isInDateRange]);
 
   const filteredPlaceIds = useMemo(() => {
     return new Set(filteredPlaces.map((p) => p.id));
@@ -202,7 +203,7 @@ export default function Reports() {
   const inspectionStatusData = [
     { name: '已完成', value: filteredInspections.filter((i) => i.status === 'completed').length },
     { name: '待整改', value: filteredInspections.filter((i) => i.status === 'pending').length },
-    { name: '整改中', value: filteredInspections.filter((i) => i.status === 'rectifying').length },}
+    { name: '整改中', value: filteredInspections.filter((i) => i.status === 'rectifying').length }
   ];
 
   const radarData = filteredPlaces.slice(0, 5).map((place) => ({
@@ -326,7 +327,7 @@ export default function Reports() {
       case 'inspection':
         content += `【巡检完成情况】\n\n`;
         content += `已完成: ${filteredInspections.filter((i) => i.status === 'completed').length} 次\n`;
-        content += `整改中: ${filteredInspections.filter((i) => i.status === 'rectifying' || i.status === 'in_progress').length} 次\n`;
+        content += `整改中: ${filteredInspections.filter((i) => i.status === 'rectifying').length} 次\n`;
         content += `待整改: ${filteredInspections.filter((i) => i.status === 'pending').length} 次\n`;
         content += `总计: ${filteredInspections.length} 次\n\n`;
 
@@ -1086,7 +1087,7 @@ export default function Reports() {
               <div className="space-y-3">
                 {[
                   { label: '已完成', count: filteredInspections.filter((i) => i.status === 'completed').length, color: 'green' },
-                  { label: '整改中', count: filteredInspections.filter((i) => i.status === 'rectifying' || i.status === 'in_progress').length, color: 'blue' },
+                  { label: '整改中', count: filteredInspections.filter((i) => i.status === 'rectifying').length, color: 'blue' },
                   { label: '待整改', count: filteredInspections.filter((i) => i.status === 'pending').length, color: 'orange' }
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between">

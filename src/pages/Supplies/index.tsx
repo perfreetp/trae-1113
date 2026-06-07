@@ -73,11 +73,16 @@ export default function Supplies() {
   const handleSubmitTransaction = () => {
     if (!selectedSupply || transactionQuantity <= 0) return;
 
+    if ((transactionType === 'out' || transactionType === 'scrap') && transactionQuantity > selectedSupply.quantity) {
+      alert(`操作失败！当前库存只有 ${selectedSupply.quantity} ${selectedSupply.unit}，无法${transactionType === 'out' ? '出库' : '报废'} ${transactionQuantity} ${selectedSupply.unit}`);
+      return;
+    }
+
     let newQuantity = selectedSupply.quantity;
     if (transactionType === 'in') {
       newQuantity += transactionQuantity;
     } else if (transactionType === 'out' || transactionType === 'scrap') {
-      newQuantity = Math.max(0, newQuantity - transactionQuantity);
+      newQuantity = newQuantity - transactionQuantity;
     }
 
     const transaction = {
