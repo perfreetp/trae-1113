@@ -75,6 +75,8 @@ export interface DispatchOrder {
   type: DispatchType;
   reason: string;
   createTime: string;
+  executeTime?: string;
+  endTime?: string;
   operator: string;
   status: DispatchStatus;
 }

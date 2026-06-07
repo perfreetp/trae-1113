@@ -31,8 +31,15 @@ interface AppState {
   deletePersonRecord: (id: string) => void;
   
   addDispatchOrder: (order: DispatchOrder) => void;
+  updateDispatchOrder: (order: DispatchOrder) => void;
   
   addFeedback: (feedback: Feedback) => void;
+  deleteSuppliesByPlaceId: (placeId: string) => void;
+  deleteInspectionsByPlaceId: (placeId: string) => void;
+  deleteDrillsByPlaceId: (placeId: string) => void;
+  deletePersonRecordsByPlaceId: (placeId: string) => void;
+  deleteDispatchOrdersByPlaceId: (placeId: string) => void;
+  deleteFeedbacksByPlaceId: (placeId: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -76,6 +83,28 @@ export const useAppStore = create<AppState>((set) => ({
   })),
 
   addDispatchOrder: (order) => set((state) => ({ dispatchOrders: [...state.dispatchOrders, order] })),
+  updateDispatchOrder: (order) => set((state) => ({
+    dispatchOrders: state.dispatchOrders.map((o) => o.id === order.id ? order : o)
+  })),
 
-  addFeedback: (feedback) => set((state) => ({ feedbacks: [...state.feedbacks, feedback] }))
+  addFeedback: (feedback) => set((state) => ({ feedbacks: [...state.feedbacks, feedback] })),
+
+  deleteSuppliesByPlaceId: (placeId) => set((state) => ({
+    supplies: state.supplies.filter((s) => s.placeId !== placeId)
+  })),
+  deleteInspectionsByPlaceId: (placeId) => set((state) => ({
+    inspections: state.inspections.filter((i) => i.placeId !== placeId)
+  })),
+  deleteDrillsByPlaceId: (placeId) => set((state) => ({
+    drills: state.drills.filter((d) => d.placeId !== placeId)
+  })),
+  deletePersonRecordsByPlaceId: (placeId) => set((state) => ({
+    personRecords: state.personRecords.filter((r) => r.placeId !== placeId)
+  })),
+  deleteDispatchOrdersByPlaceId: (placeId) => set((state) => ({
+    dispatchOrders: state.dispatchOrders.filter((o) => o.placeId !== placeId)
+  })),
+  deleteFeedbacksByPlaceId: (placeId) => set((state) => ({
+    feedbacks: state.feedbacks.filter((f) => f.placeId !== placeId)
+  }))
 }));

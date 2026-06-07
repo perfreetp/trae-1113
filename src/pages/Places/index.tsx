@@ -12,14 +12,19 @@ import {
   Edit,
   Trash2,
   Phone,
-  User,
   MapPin,
   Square,
   Users,
   Accessibility,
-  X
+  X,
+  AlertTriangle,
+  Package,
+  ClipboardList,
+  TrendingUp,
+  Send,
+  MessageSquare
 } from 'lucide-react';
-import { getPlaceTypeText, formatDate, generateId, calculateCapacity } from '../../utils';
+import { getPlaceTypeText, generateId, calculateCapacity } from '../../utils';
 import type { Place, PlaceType, PlaceStatus } from '../../types';
 
 type ViewMode = 'list' | 'map';
@@ -43,7 +48,25 @@ const defaultFormData = {
 };
 
 export default function Places() {
-  const { places, addPlace, updatePlace, deletePlace } = useAppStore();
+  const {
+    places,
+    supplies,
+    inspections,
+    drills,
+    personRecords,
+    dispatchOrders,
+    feedbacks,
+    addPlace,
+    updatePlace,
+    deletePlace,
+    deleteSuppliesByPlaceId,
+    deleteInspectionsByPlaceId,
+    deleteDrillsByPlaceId,
+    deletePersonRecordsByPlaceId,
+    deleteDispatchOrdersByPlaceId,
+    deleteFeedbacksByPlaceId
+  } = useAppStore();
+
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [districtFilter, setDistrictFilter] = useState('');
@@ -53,10 +76,12 @@ export default function Places() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState(defaultFormData);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingPlaceId, setDeletingPlaceId] = useState<string | null>(null);
 
-  const districts = [...new Set(places.map(p => p.district))];
+  const districts = [...new Set(places.map((p) => p.district))];
 
-  const filteredPlaces = places.filter(place => {
+  const filteredPlaces = places.filter((place) => {
     const matchSearch = place.name.includes(searchTerm) || place.address.includes(searchTerm);
     const matchDistrict = !districtFilter || place.district === districtFilter;
     const matchType = !typeFilter || place.type === typeFilter;
@@ -112,7 +137,7 @@ export default function Places() {
       };
       addPlace(newPlace);
     } else if (modalMode === 'edit' && editingId) {
-      const existing = places.find(p => p.id === editingId);
+      const existing = places.find((p) => p.id === editingId);
       if (existing) {
         updatePlace({
           ...existing,
@@ -125,15 +150,39 @@ export default function Places() {
     closeModal();
   };
 
+  const getPlaceRelations = (placeId: string) => {
+    return {
+      supplies: supplies.filter((s) => s.placeId === placeId).length,
+      inspections: inspections.filter((i) => i.placeId === placeId).length,
+      drills: drills.filter((d) => d.placeId === placeId).length,
+      personRecords: personRecords.filter((r) => r.placeId === placeId).length,
+      dispatchOrders: dispatchOrders.filter((o) => o.placeId === placeId).length,
+      feedbacks: feedbacks.filter((f) => f.placeId === placeId).length
+    };
+  };
+
   const handleDelete = (id: string) => {
-    if (!confirm('确定要删除该场所吗？此操作不可撤销。')) {
-      return;
-    }
-    deletePlace(id);
+    setDeletingPlaceId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingPlaceId) return;
+
+    deletePlace(deletingPlaceId);
+    deleteSuppliesByPlaceId(deletingPlaceId);
+    deleteInspectionsByPlaceId(deletingPlaceId);
+    deleteDrillsByPlaceId(deletingPlaceId);
+    deletePersonRecordsByPlaceId(deletingPlaceId);
+    deleteDispatchOrdersByPlaceId(deletingPlaceId);
+    deleteFeedbacksByPlaceId(deletingPlaceId);
+
+    setShowDeleteConfirm(false);
+    setDeletingPlaceId(null);
   };
 
   const handleAreaChange = (area: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       area,
       capacity: calculateCapacity(area, prev.type)
@@ -141,7 +190,7 @@ export default function Places() {
   };
 
   const handleTypeChange = (type: PlaceType) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       type,
       capacity: calculateCapacity(prev.area, type)
@@ -187,7 +236,7 @@ export default function Places() {
               className="px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="">全部区域</option>
-              {districts.map(d => (
+              {districts.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
@@ -219,13 +268,17 @@ export default function Places() {
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <List className="w-5 h-5" />
             </button>
             <button
               onClick={() => setViewMode('map')}
-              className={`p-2 rounded-md transition-colors ${viewMode === 'map' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'map' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <Map className="w-5 h-5" />
             </button>
@@ -338,7 +391,10 @@ export default function Places() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
             {filteredPlaces.map((place) => (
-              <div key={place.id} className="p-4 border border-gray-100 rounded-lg hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer">
+              <div
+                key={place.id}
+                className="p-4 border border-gray-100 rounded-lg hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer"
+              >
                 <div className="flex items-start justify-between">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                     <Building2 className="w-5 h-5 text-blue-600" />
@@ -385,23 +441,25 @@ export default function Places() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:col-span-2">
           <h4 className="font-semibold text-gray-900 mb-4">设施配置统计</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {['应急照明', '供水设施', '医疗站', '通讯设备', '卫生间', '住宿区', '物资仓库', '无障碍通道'].map((item, idx) => {
-              const count = places.filter(p => p.facilities.includes(item)).length;
-              return (
-                <div key={item} className="text-center p-4 bg-gray-50 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">{count}</p>
-                  <p className="text-sm text-gray-600 mt-1">{item}</p>
-                </div>
-              );
-            })}
+            {['应急照明', '供水设施', '医疗站', '通讯设备', '卫生间', '住宿区', '物资仓库', '无障碍通道'].map(
+              (item) => {
+                const count = places.filter((p) => p.facilities.includes(item)).length;
+                return (
+                  <div key={item} className="text-center p-4 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-bold text-blue-600">{count}</p>
+                    <p className="text-sm text-gray-600 mt-1">{item}</p>
+                  </div>
+                );
+              }
+            )}
           </div>
         </div>
       </div>
 
       {modalMode && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 m-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <h3 className="text-xl font-bold text-gray-900">
                 {modalMode === 'add' ? '新增场所' : '编辑场所'}
               </h3>
@@ -412,15 +470,14 @@ export default function Places() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            <div className="space-y-4">
+            <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">场所名称 *</label>
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="请输入场所名称"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -429,13 +486,15 @@ export default function Places() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">所属区域 *</label>
                   <select
                     value={formData.district}
-                    onChange={(e) => setFormData(prev => ({ ...prev, district: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, district: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">请选择区域</option>
-                    {['黄浦区', '徐汇区', '长宁区', '静安区', '普陀区', '虹口区', '杨浦区', '浦东新区', '闵行区', '宝山区', '嘉定区', '金山区', '松江区', '青浦区', '奉贤区', '崇明区'].map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
+                    {['黄浦区', '徐汇区', '长宁区', '静安区', '普陀区', '虹口区', '杨浦区', '浦东新区', '闵行区', '宝山区', '嘉定区', '金山区', '松江区', '青浦区', '奉贤区', '崇明区'].map(
+                      (d) => (
+                        <option key={d} value={d}>{d}</option>
+                      )
+                    )}
                   </select>
                 </div>
               </div>
@@ -445,7 +504,7 @@ export default function Places() {
                 <input
                   type="text"
                   value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
                   placeholder="请输入详细地址"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -479,7 +538,7 @@ export default function Places() {
                   <input
                     type="number"
                     value={formData.capacity || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, capacity: Number(e.target.value) }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, capacity: Number(e.target.value) }))}
                     placeholder="自动计算或手动输入"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -491,7 +550,7 @@ export default function Places() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">场所状态</label>
                   <select
                     value={formData.status}
-                    onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as PlaceStatus }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value as PlaceStatus }))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="normal">正常</option>
@@ -505,7 +564,7 @@ export default function Places() {
                     <input
                       type="checkbox"
                       checked={formData.accessible}
-                      onChange={(e) => setFormData(prev => ({ ...prev, accessible: e.target.checked }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, accessible: e.target.checked }))}
                       className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                     />
                     <span className="text-sm font-medium text-gray-700">支持无障碍设施</span>
@@ -519,7 +578,7 @@ export default function Places() {
                   <input
                     type="text"
                     value={formData.manager}
-                    onChange={(e) => setFormData(prev => ({ ...prev, manager: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, manager: e.target.value }))}
                     placeholder="请输入负责人姓名"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -529,15 +588,14 @@ export default function Places() {
                   <input
                     type="text"
                     value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
                     placeholder="请输入联系电话"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
             </div>
-
-            <div className="flex gap-3 mt-8">
+            <div className="flex gap-3 p-6 border-t border-gray-100">
               <button
                 onClick={closeModal}
                 className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -549,6 +607,90 @@ export default function Places() {
                 className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {modalMode === 'add' ? '确认新增' : '保存修改'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && deletingPlaceId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 className="text-xl font-bold text-gray-900">确认删除场所</h3>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeletingPlaceId(null);
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-red-800">
+                      {places.find((p) => p.id === deletingPlaceId)?.name}
+                    </p>
+                    <p className="text-sm text-red-700 mt-1">
+                      删除该场所将同时删除以下关联数据，此操作不可撤销
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(getPlaceRelations(deletingPlaceId)).map(([key, count]) => {
+                  if (count === 0) return null;
+                  const labels: Record<
+                    string,
+                    { label: string; icon: any; color: string }
+                  > = {
+                    supplies: { label: '物资记录', icon: Package, color: 'text-purple-600' },
+                    inspections: { label: '巡检记录', icon: ClipboardList, color: 'text-orange-600' },
+                    drills: { label: '演练记录', icon: TrendingUp, color: 'text-green-600' },
+                    personRecords: { label: '人员登记', icon: Users, color: 'text-blue-600' },
+                    dispatchOrders: { label: '调度指令', icon: Send, color: 'text-yellow-600' },
+                    feedbacks: { label: '反馈评价', icon: MessageSquare, color: 'text-pink-600' }
+                  };
+                  const info = labels[key];
+                  const Icon = info.icon;
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-4 h-4 ${info.color}`} />
+                        <span className="text-sm text-gray-700">{info.label}</span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">{count} 条</span>
+                    </div>
+                  );
+                })}
+                {Object.values(getPlaceRelations(deletingPlaceId)).every((v) => v === 0) && (
+                  <p className="text-center text-gray-500 py-4">该场所暂无关联数据</p>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-3 p-6 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeletingPlaceId(null);
+                }}
+                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                确认删除
               </button>
             </div>
           </div>
