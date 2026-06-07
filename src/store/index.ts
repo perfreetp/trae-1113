@@ -28,6 +28,7 @@ interface AppState {
   
   addPersonRecord: (record: PersonRecord) => void;
   updatePersonRecord: (record: PersonRecord) => void;
+  deletePersonRecord: (id: string) => void;
   
   addDispatchOrder: (order: DispatchOrder) => void;
   
@@ -69,6 +70,9 @@ export const useAppStore = create<AppState>((set) => ({
   addPersonRecord: (record) => set((state) => ({ personRecords: [...state.personRecords, record] })),
   updatePersonRecord: (record) => set((state) => ({
     personRecords: state.personRecords.map((r) => r.id === record.id ? record : r)
+  })),
+  deletePersonRecord: (id) => set((state) => ({
+    personRecords: state.personRecords.filter((r) => r.id !== id)
   })),
 
   addDispatchOrder: (order) => set((state) => ({ dispatchOrders: [...state.dispatchOrders, order] })),

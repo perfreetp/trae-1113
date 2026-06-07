@@ -20,10 +20,11 @@ import {
   Clock,
   Send
 } from 'lucide-react';
-import { getPlaceTypeText, formatDate } from '../../utils';
+import { getPlaceTypeText, formatDate, generateId } from '../../utils';
+import type { Feedback } from '../../types';
 
 export default function PublicQuery() {
-  const { places, feedbacks } = useAppStore();
+  const { places, feedbacks, addFeedback } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [districtFilter, setDistrictFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -391,14 +392,32 @@ export default function PublicQuery() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowFeedbackModal(false)}
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setRating(5);
+                  setComment('');
+                }}
                 className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={() => {
+                  if (!selectedPlace) return;
+                  if (!comment.trim()) {
+                    alert('请填写评价内容');
+                    return;
+                  }
+                  const newFeedback: Feedback = {
+                    id: generateId(),
+                    placeId: selectedPlace,
+                    rating,
+                    comment,
+                    createTime: new Date().toISOString()
+                  };
+                  addFeedback(newFeedback);
                   setShowFeedbackModal(false);
+                  setRating(5);
                   setComment('');
                 }}
                 className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"

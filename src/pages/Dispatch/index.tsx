@@ -16,13 +16,30 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
-import { formatDateTime, formatDate } from '../../utils';
+import { formatDateTime, generateId } from '../../utils';
+import type { DispatchOrder, PersonRecord } from '../../types';
 
 export default function Dispatch() {
-  const { places, dispatchOrders, personRecords } = useAppStore();
+  const {
+    places,
+    dispatchOrders,
+    personRecords,
+    addDispatchOrder,
+    addPersonRecord,
+    deletePersonRecord,
+    updatePlace
+  } = useAppStore();
+
   const [selectedPlace, setSelectedPlace] = useState<string>('');
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  const [orderPlaceId, setOrderPlaceId] = useState('');
+  const [orderType, setOrderType] = useState<'open' | 'close'>('open');
+  const [orderReason, setOrderReason] = useState('');
+
+  const [registerName, setRegisterName] = useState('');
+  const [registerIdCard, setRegisterIdCard] = useState('');
 
   const openPlaces = places.filter(p => p.status === 'open');
   const placePersonRecords = selectedPlace 
@@ -33,6 +50,99 @@ export default function Dispatch() {
   const currentPeople = selectedPlaceData?.currentPeople || 0;
   const capacity = selectedPlaceData?.capacity || 0;
   const utilization = capacity > 0 ? Math.round((currentPeople / capacity) * 100) : 0;
+
+  const handlePublishOrder = () => {
+    if (!orderPlaceId || !orderReason.trim()) {
+      alert('请选择场所并填写指令原因');
+      return;
+    }
+
+    const newOrder: DispatchOrder = {
+      id: generateId(),
+      placeId: orderPlaceId,
+      type: orderType,
+      reason: orderReason,
+      createTime: new Date().toISOString(),
+      operator: '当前管理员',
+      status: 'active'
+    };
+
+    addDispatchOrder(newOrder);
+
+    const place = places.find(p => p.id === orderPlaceId);
+    if (place) {
+      const updatedPlace = {
+        ...place,
+        status: orderType === 'open' ? 'open' : 'closed' as const,
+        currentPeople: orderType === 'close' ? 0 : place.currentPeople
+      };
+      updatePlace(updatedPlace);
+
+      if (orderType === 'close') {
+        personRecords
+          .filter(r => r.placeId === orderPlaceId && !r.checkOutTime)
+          .forEach(r => deletePersonRecord(r.id));
+      }
+    }
+
+    setOrderPlaceId('');
+    setOrderType('open');
+    setOrderReason('');
+    setShowOrderModal(false);
+  };
+
+  const handleRegister = () => {
+    if (!registerName.trim()) {
+      alert('请输入姓名');
+      return;
+    }
+
+    if (!selectedPlace) {
+      alert('请先选择场所');
+      return;
+    }
+
+    const newRecord: PersonRecord = {
+      id: generateId(),
+      placeId: selectedPlace,
+      name: registerName,
+      idCard: registerIdCard || undefined,
+      checkInTime: new Date().toISOString(),
+      checkOutTime: undefined
+    };
+
+    addPersonRecord(newRecord);
+
+    const place = places.find(p => p.id === selectedPlace);
+    if (place) {
+      updatePlace({
+        ...place,
+        currentPeople: (place.currentPeople || 0) + 1
+      });
+    }
+
+    setRegisterName('');
+    setRegisterIdCard('');
+    setShowRegisterModal(false);
+  };
+
+  const handleCheckOut = (recordId: string) => {
+    if (!confirm('确认签出该人员吗？')) {
+      return;
+    }
+
+    deletePersonRecord(recordId);
+
+    if (selectedPlace) {
+      const place = places.find(p => p.id === selectedPlace);
+      if (place) {
+        updatePlace({
+          ...place,
+          currentPeople: Math.max(0, (place.currentPeople || 0) - 1)
+        });
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -158,7 +268,12 @@ export default function Dispatch() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setShowRegisterModal(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                      disabled={selectedPlaceData.status !== 'open'}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm ${
+                        selectedPlaceData.status === 'open'
+                          ? 'bg-green-600 text-white hover:bg-green-700'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
                     >
                       <UserPlus className="w-4 h-4" />
                       人员登记
@@ -235,7 +350,10 @@ export default function Dispatch() {
                             <td className="py-3 px-4 text-gray-600 text-sm">{record.idCard || '-'}</td>
                             <td className="py-3 px-4 text-gray-600 text-sm">{formatDateTime(record.checkInTime)}</td>
                             <td className="py-3 px-4">
-                              <button className="flex items-center gap-1 text-sm text-orange-600 hover:text-orange-700">
+                              <button
+                                onClick={() => handleCheckOut(record.id)}
+                                className="flex items-center gap-1 text-sm text-orange-600 hover:text-orange-700"
+                              >
                                 <UserMinus className="w-4 h-4" />
                                 签出
                               </button>
@@ -321,7 +439,12 @@ export default function Dispatch() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">选择场所</label>
-                <select className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select
+                  value={orderPlaceId}
+                  onChange={(e) => setOrderPlaceId(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">请选择场所</option>
                   {places.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -329,7 +452,11 @@ export default function Dispatch() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">指令类型</label>
-                <select className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select
+                  value={orderType}
+                  onChange={(e) => setOrderType(e.target.value as 'open' | 'close')}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
                   <option value="open">开放场所</option>
                   <option value="close">关闭场所</option>
                 </select>
@@ -338,6 +465,8 @@ export default function Dispatch() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">指令原因</label>
                 <textarea
                   rows={3}
+                  value={orderReason}
+                  onChange={(e) => setOrderReason(e.target.value)}
                   placeholder="请输入指令原因..."
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 ></textarea>
@@ -345,12 +474,20 @@ export default function Dispatch() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowOrderModal(false)}
+                onClick={() => {
+                  setShowOrderModal(false);
+                  setOrderPlaceId('');
+                  setOrderType('open');
+                  setOrderReason('');
+                }}
                 className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 取消
               </button>
-              <button className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <button
+                onClick={handlePublishOrder}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
                 发布指令
               </button>
             </div>
@@ -367,6 +504,8 @@ export default function Dispatch() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">姓名</label>
                 <input
                   type="text"
+                  value={registerName}
+                  onChange={(e) => setRegisterName(e.target.value)}
                   placeholder="请输入姓名"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -375,6 +514,8 @@ export default function Dispatch() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">身份证号（选填）</label>
                 <input
                   type="text"
+                  value={registerIdCard}
+                  onChange={(e) => setRegisterIdCard(e.target.value)}
                   placeholder="请输入身份证号"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -382,12 +523,19 @@ export default function Dispatch() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowRegisterModal(false)}
+                onClick={() => {
+                  setShowRegisterModal(false);
+                  setRegisterName('');
+                  setRegisterIdCard('');
+                }}
                 className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 取消
               </button>
-              <button className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+              <button
+                onClick={handleRegister}
+                className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
                 确认登记
               </button>
             </div>

@@ -16,19 +16,43 @@ import {
   MapPin,
   Square,
   Users,
-  Accessibility
+  Accessibility,
+  X
 } from 'lucide-react';
-import { getPlaceTypeText, formatDate } from '../../utils';
+import { getPlaceTypeText, formatDate, generateId, calculateCapacity } from '../../utils';
+import type { Place, PlaceType, PlaceStatus } from '../../types';
 
 type ViewMode = 'list' | 'map';
+type ModalMode = 'add' | 'edit' | null;
+
+const defaultFormData = {
+  name: '',
+  address: '',
+  district: '',
+  area: 0,
+  capacity: 0,
+  type: 'indoor' as PlaceType,
+  status: 'normal' as PlaceStatus,
+  accessible: false,
+  manager: '',
+  phone: '',
+  facilities: [] as string[],
+  lat: 31.2304,
+  lng: 121.4737,
+  description: ''
+};
 
 export default function Places() {
-  const { places } = useAppStore();
+  const { places, addPlace, updatePlace, deletePlace } = useAppStore();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [districtFilter, setDistrictFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState(defaultFormData);
 
   const districts = [...new Set(places.map(p => p.district))];
 
@@ -40,6 +64,90 @@ export default function Places() {
     return matchSearch && matchDistrict && matchType && matchStatus;
   });
 
+  const openAddModal = () => {
+    setFormData(defaultFormData);
+    setEditingId(null);
+    setModalMode('add');
+  };
+
+  const openEditModal = (place: Place) => {
+    setFormData({
+      name: place.name,
+      address: place.address,
+      district: place.district,
+      area: place.area,
+      capacity: place.capacity,
+      type: place.type,
+      status: place.status,
+      accessible: place.accessible,
+      manager: place.manager,
+      phone: place.phone,
+      facilities: place.facilities,
+      lat: place.lat,
+      lng: place.lng,
+      description: place.description || ''
+    });
+    setEditingId(place.id);
+    setModalMode('edit');
+  };
+
+  const closeModal = () => {
+    setModalMode(null);
+    setEditingId(null);
+    setFormData(defaultFormData);
+  };
+
+  const handleSubmit = () => {
+    if (!formData.name.trim() || !formData.address.trim() || !formData.district) {
+      alert('请填写场所名称、地址和区域');
+      return;
+    }
+
+    if (modalMode === 'add') {
+      const newPlace: Place = {
+        id: generateId(),
+        ...formData,
+        currentPeople: 0,
+        updatedAt: new Date().toISOString().split('T')[0]
+      };
+      addPlace(newPlace);
+    } else if (modalMode === 'edit' && editingId) {
+      const existing = places.find(p => p.id === editingId);
+      if (existing) {
+        updatePlace({
+          ...existing,
+          ...formData,
+          updatedAt: new Date().toISOString().split('T')[0]
+        });
+      }
+    }
+
+    closeModal();
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm('确定要删除该场所吗？此操作不可撤销。')) {
+      return;
+    }
+    deletePlace(id);
+  };
+
+  const handleAreaChange = (area: number) => {
+    setFormData(prev => ({
+      ...prev,
+      area,
+      capacity: calculateCapacity(area, prev.type)
+    }));
+  };
+
+  const handleTypeChange = (type: PlaceType) => {
+    setFormData(prev => ({
+      ...prev,
+      type,
+      capacity: calculateCapacity(prev.area, type)
+    }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -47,7 +155,10 @@ export default function Places() {
           <h1 className="text-2xl font-bold text-gray-900">场所台账</h1>
           <p className="text-gray-500 mt-1">管理全市应急避难场所基础信息</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+        <button
+          onClick={openAddModal}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+        >
           <Plus className="w-5 h-5" />
           新增场所
         </button>
@@ -188,10 +299,16 @@ export default function Places() {
                         <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                        <button
+                          onClick={() => openEditModal(place)}
+                          className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <button
+                          onClick={() => handleDelete(place.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -280,6 +397,163 @@ export default function Places() {
           </div>
         </div>
       </div>
+
+      {modalMode && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 m-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">
+                {modalMode === 'add' ? '新增场所' : '编辑场所'}
+              </h3>
+              <button
+                onClick={closeModal}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">场所名称 *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="请输入场所名称"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">所属区域 *</label>
+                  <select
+                    value={formData.district}
+                    onChange={(e) => setFormData(prev => ({ ...prev, district: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">请选择区域</option>
+                    {['黄浦区', '徐汇区', '长宁区', '静安区', '普陀区', '虹口区', '杨浦区', '浦东新区', '闵行区', '宝山区', '嘉定区', '金山区', '松江区', '青浦区', '奉贤区', '崇明区'].map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">详细地址 *</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="请输入详细地址"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">场所类型</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => handleTypeChange(e.target.value as PlaceType)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="indoor">室内</option>
+                    <option value="outdoor">室外</option>
+                    <option value="comprehensive">综合</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">面积 (㎡)</label>
+                  <input
+                    type="number"
+                    value={formData.area || ''}
+                    onChange={(e) => handleAreaChange(Number(e.target.value))}
+                    placeholder="请输入面积"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">设计容量 (人)</label>
+                  <input
+                    type="number"
+                    value={formData.capacity || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, capacity: Number(e.target.value) }))}
+                    placeholder="自动计算或手动输入"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">场所状态</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as PlaceStatus }))}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="normal">正常</option>
+                    <option value="open">开放中</option>
+                    <option value="maintenance">维护中</option>
+                    <option value="closed">已关闭</option>
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.accessible}
+                      onChange={(e) => setFormData(prev => ({ ...prev, accessible: e.target.checked }))}
+                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">支持无障碍设施</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">负责人</label>
+                  <input
+                    type="text"
+                    value={formData.manager}
+                    onChange={(e) => setFormData(prev => ({ ...prev, manager: e.target.value }))}
+                    placeholder="请输入负责人姓名"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">联系电话</label>
+                  <input
+                    type="text"
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="请输入联系电话"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={closeModal}
+                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                {modalMode === 'add' ? '确认新增' : '保存修改'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

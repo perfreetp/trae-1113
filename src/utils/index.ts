@@ -1,11 +1,17 @@
 import type { PlaceStatus, SupplyStatus, InspectionStatus, PlaceType } from '../types';
 
-export const formatDate = (date: string): string => {
-  return new Date(date).toLocaleDateString('zh-CN');
+export const formatDate = (date: string | undefined): string => {
+  if (!date) return '-';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('zh-CN');
 };
 
-export const formatDateTime = (date: string): string => {
-  return new Date(date).toLocaleString('zh-CN');
+export const formatDateTime = (date: string | undefined): string => {
+  if (!date) return '-';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleString('zh-CN');
 };
 
 export const getPlaceStatusText = (status: PlaceStatus): string => {
@@ -55,22 +61,24 @@ export const getSupplyStatusColor = (status: SupplyStatus): string => {
   return map[status];
 };
 
-export const getInspectionStatusText = (status: InspectionStatus): string => {
-  const map: Record<InspectionStatus, string> = {
-    pending: '待处理',
+export const getInspectionStatusText = (status: InspectionStatus | 'in_progress'): string => {
+  const map: Record<string, string> = {
+    pending: '待整改',
     rectifying: '整改中',
+    in_progress: '整改中',
     completed: '已完成'
   };
-  return map[status];
+  return map[status] || status;
 };
 
-export const getInspectionStatusColor = (status: InspectionStatus): string => {
-  const map: Record<InspectionStatus, string> = {
+export const getInspectionStatusColor = (status: InspectionStatus | 'in_progress'): string => {
+  const map: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800',
     rectifying: 'bg-blue-100 text-blue-800',
+    in_progress: 'bg-blue-100 text-blue-800',
     completed: 'bg-green-100 text-green-800'
   };
-  return map[status];
+  return map[status] || 'bg-gray-100 text-gray-800';
 };
 
 export const calculateCapacity = (area: number, type: PlaceType): number => {

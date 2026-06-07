@@ -86,7 +86,7 @@ export default function Reports() {
   const inspectionStatusData = [
     { name: '已完成', value: inspections.filter(i => i.status === 'completed').length },
     { name: '待整改', value: inspections.filter(i => i.status === 'pending').length },
-    { name: '整改中', value: inspections.filter(i => i.status === 'in_progress').length }
+    { name: '整改中', value: inspections.filter(i => i.status === 'rectifying' || i.status === 'in_progress').length }
   ];
 
   const radarData = places.slice(0, 5).map(place => ({
@@ -595,7 +595,7 @@ export default function Reports() {
               <div className="space-y-3">
                 {[
                   { label: '已完成', count: inspections.filter(i => i.status === 'completed').length, color: 'green' },
-                  { label: '整改中', count: inspections.filter(i => i.status === 'in_progress').length, color: 'blue' },
+                  { label: '整改中', count: inspections.filter(i => i.status === 'rectifying' || i.status === 'in_progress').length, color: 'blue' },
                   { label: '待整改', count: inspections.filter(i => i.status === 'pending').length, color: 'orange' }
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between">
@@ -663,15 +663,15 @@ export default function Reports() {
                         <td className="py-3 px-4 font-medium text-gray-900">{place?.name || '-'}</td>
                         <td className="py-3 px-4 text-gray-600">{inspection.inspector}</td>
                         <td className="py-3 px-4 text-gray-600 max-w-xs truncate">{inspection.issues[0] || '-'}</td>
-                        <td className="py-3 px-4 text-gray-600">{formatDate(inspection.deadline)}</td>
+                        <td className="py-3 px-4 text-gray-600">{inspection.rectifyDeadline ? formatDate(inspection.rectifyDeadline) : '-'}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             inspection.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            inspection.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                            inspection.status === 'in_progress' || inspection.status === 'rectifying' ? 'bg-blue-100 text-blue-700' :
                             'bg-orange-100 text-orange-700'
                           }`}>
                             {inspection.status === 'completed' ? '已完成' :
-                             inspection.status === 'in_progress' ? '整改中' : '待整改'}
+                             inspection.status === 'in_progress' || inspection.status === 'rectifying' ? '整改中' : '待整改'}
                           </span>
                         </td>
                       </tr>
