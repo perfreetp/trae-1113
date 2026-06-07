@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Place, Supply, Inspection, Drill, PersonRecord, DispatchOrder, Feedback } from '../types';
+import type { Place, Supply, Inspection, Drill, PersonRecord, DispatchOrder, Feedback, SupplyTransaction, ReportTemplate } from '../types';
 import { mockPlaces, mockSupplies, mockInspections, mockDrills, mockPersonRecords, mockDispatchOrders, mockFeedbacks } from '../data/mockData';
 
 interface AppState {
@@ -10,6 +10,8 @@ interface AppState {
   personRecords: PersonRecord[];
   dispatchOrders: DispatchOrder[];
   feedbacks: Feedback[];
+  supplyTransactions: SupplyTransaction[];
+  reportTemplates: ReportTemplate[];
   selectedPlace: Place | null;
   
   setPlaces: (places: Place[]) => void;
@@ -20,6 +22,10 @@ interface AppState {
   
   addSupply: (supply: Supply) => void;
   updateSupply: (supply: Supply) => void;
+  deleteSupply: (id: string) => void;
+  
+  addSupplyTransaction: (transaction: SupplyTransaction) => void;
+  deleteSupplyTransactionsByPlaceId: (placeId: string) => void;
   
   addInspection: (inspection: Inspection) => void;
   updateInspection: (inspection: Inspection) => void;
@@ -29,11 +35,18 @@ interface AppState {
   addPersonRecord: (record: PersonRecord) => void;
   updatePersonRecord: (record: PersonRecord) => void;
   deletePersonRecord: (id: string) => void;
+  checkOutPersonRecord: (id: string) => void;
+  checkOutAllByPlaceId: (placeId: string) => void;
   
   addDispatchOrder: (order: DispatchOrder) => void;
   updateDispatchOrder: (order: DispatchOrder) => void;
   
   addFeedback: (feedback: Feedback) => void;
+  
+  addReportTemplate: (template: ReportTemplate) => void;
+  updateReportTemplate: (template: ReportTemplate) => void;
+  deleteReportTemplate: (id: string) => void;
+  
   deleteSuppliesByPlaceId: (placeId: string) => void;
   deleteInspectionsByPlaceId: (placeId: string) => void;
   deleteDrillsByPlaceId: (placeId: string) => void;
@@ -50,6 +63,8 @@ export const useAppStore = create<AppState>((set) => ({
   personRecords: mockPersonRecords,
   dispatchOrders: mockDispatchOrders,
   feedbacks: mockFeedbacks,
+  supplyTransactions: [],
+  reportTemplates: [],
   selectedPlace: null,
 
   setPlaces: (places) => set({ places }),
@@ -66,6 +81,16 @@ export const useAppStore = create<AppState>((set) => ({
   updateSupply: (supply) => set((state) => ({
     supplies: state.supplies.map((s) => s.id === supply.id ? supply : s)
   })),
+  deleteSupply: (id) => set((state) => ({
+    supplies: state.supplies.filter((s) => s.id !== id)
+  })),
+
+  addSupplyTransaction: (transaction) => set((state) => ({
+    supplyTransactions: [...state.supplyTransactions, transaction]
+  })),
+  deleteSupplyTransactionsByPlaceId: (placeId) => set((state) => ({
+    supplyTransactions: state.supplyTransactions.filter((t) => t.placeId !== placeId)
+  })),
 
   addInspection: (inspection) => set((state) => ({ inspections: [...state.inspections, inspection] })),
   updateInspection: (inspection) => set((state) => ({
@@ -81,6 +106,18 @@ export const useAppStore = create<AppState>((set) => ({
   deletePersonRecord: (id) => set((state) => ({
     personRecords: state.personRecords.filter((r) => r.id !== id)
   })),
+  checkOutPersonRecord: (id) => set((state) => ({
+    personRecords: state.personRecords.map((r) =>
+      r.id === id ? { ...r, checkOutTime: new Date().toISOString() } : r
+    )
+  })),
+  checkOutAllByPlaceId: (placeId) => set((state) => ({
+    personRecords: state.personRecords.map((r) =>
+      r.placeId === placeId && !r.checkOutTime
+        ? { ...r, checkOutTime: new Date().toISOString() }
+        : r
+    )
+  })),
 
   addDispatchOrder: (order) => set((state) => ({ dispatchOrders: [...state.dispatchOrders, order] })),
   updateDispatchOrder: (order) => set((state) => ({
@@ -88,6 +125,16 @@ export const useAppStore = create<AppState>((set) => ({
   })),
 
   addFeedback: (feedback) => set((state) => ({ feedbacks: [...state.feedbacks, feedback] })),
+
+  addReportTemplate: (template) => set((state) => ({
+    reportTemplates: [...state.reportTemplates, template]
+  })),
+  updateReportTemplate: (template) => set((state) => ({
+    reportTemplates: state.reportTemplates.map((t) => t.id === template.id ? template : t)
+  })),
+  deleteReportTemplate: (id) => set((state) => ({
+    reportTemplates: state.reportTemplates.filter((t) => t.id !== id)
+  })),
 
   deleteSuppliesByPlaceId: (placeId) => set((state) => ({
     supplies: state.supplies.filter((s) => s.placeId !== placeId)

@@ -31,6 +31,8 @@ export default function Dispatch() {
     addDispatchOrder,
     addPersonRecord,
     deletePersonRecord,
+    checkOutPersonRecord,
+    checkOutAllByPlaceId,
     updatePlace,
     updateDispatchOrder
   } = useAppStore();
@@ -101,15 +103,13 @@ export default function Dispatch() {
     if (place) {
       const updatedPlace = {
         ...place,
-        status: type === 'open' ? 'open' : 'closed' as const,
+        status: (type === 'open' ? 'open' : 'closed') as 'open' | 'closed',
         currentPeople: type === 'close' ? 0 : place.currentPeople
       };
       updatePlace(updatedPlace);
 
       if (type === 'close') {
-        personRecords
-          .filter(r => r.placeId === placeId && !r.checkOutTime)
-          .forEach(r => deletePersonRecord(r.id));
+        checkOutAllByPlaceId(placeId);
       }
     }
 
@@ -181,7 +181,7 @@ export default function Dispatch() {
       return;
     }
 
-    deletePersonRecord(recordId);
+    checkOutPersonRecord(recordId);
 
     if (selectedPlace) {
       const place = places.find(p => p.id === selectedPlace);

@@ -88,3 +88,28 @@ export interface Feedback {
   comment: string;
   createTime: string;
 }
+
+export type SupplyTransactionType = 'in' | 'out' | 'scrap';
+
+export interface SupplyTransaction {
+  id: string;
+  supplyId: string;
+  placeId: string;
+  type: SupplyTransactionType;
+  quantity: number;
+  operator: string;
+  remark: string;
+  createTime: string;
+}
+
+export interface ReportTemplate {
+  id: string;
+  name: string;
+  description: string;
+  tab: string;
+  dateRange: string;
+  districtFilter: string;
+  placeStatusFilter: string;
+  placeTypeFilter: string;
+  createTime: string;
+}
